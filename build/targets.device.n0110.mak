@@ -22,8 +22,8 @@ $(BUILD_DIR)/test.external_flash.write.$(EXE): $(BUILD_DIR)/quiz/src/test_ion_ex
 	$(Q) $(OBJCOPY) -O binary -j .text.external -j .rodata.external -j .exam_mode_buffer $(BUILD_DIR)/$< $(BUILD_DIR)/$(basename $<).external.bin
 	$(Q) $(OBJCOPY) -O binary -R .text.external -R .rodata.external -R .exam_mode_buffer $(BUILD_DIR)/$< $(BUILD_DIR)/$(basename $<).internal.bin
 	@echo "Padding $(basename $<).external.bin and $(basename $<).internal.bin"
-	$(Q) printf "\xFF\xFF\xFF\xFF" >> $(basename $<).external.bin
-	$(Q) printf "\xFF\xFF\xFF\xFF" >> $(basename $<).internal.bin
+	$(Q) printf "\xFF\xFF\xFF\xFF" >> $(BUILD_DIR)/$(basename $<).external.bin
+	$(Q) printf "\xFF\xFF\xFF\xFF" >> $(BUILD_DIR)/$(basename $<).internal.bin
 
 .PHONY: binpack
 binpack:
