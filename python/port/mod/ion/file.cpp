@@ -7,9 +7,9 @@ extern "C" {
 #include <py/stream.h>
 #include <py/builtin.h>
 #include <py/obj.h>
-#include <string.h>
 }
 
+#include <string.h>
 #include <ion/storage.h>
 
 STATIC void file_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind);
@@ -22,6 +22,10 @@ extern const mp_obj_type_t file_type = {
     file_print,
     file_make_new,
 };
+
+typedef enum _file_location_t {
+    RAM = 0, FLASH = 1
+} file_location_t;
 
 typedef enum _file_mode_t {
     READ = 0, WRITE = 1, APPEND = 2, CREATE = 3
@@ -37,9 +41,15 @@ typedef struct _file_obj_t {
     
     mp_obj_t name;
     
-    file_mode_t open_mode;
-    bool        edit_mode;
-    file_bin_t  binary_mode;
+    file_mode_t     open_mode;
+    bool            edit_mode;
+    file_bin_t      binary_mode;
+    
+    file_location_t location;
+    // If location is set to RAM, record is used.
+    Ion::Storage::Record record;
+    
+    uint16_t position;
     
 } file_obj_t;
 
@@ -112,10 +122,12 @@ STATIC mp_obj_t file_make_new(const mp_obj_type_t *type, size_t n_args, size_t n
         mp_raise_ValueError("First argument must be a string!");
     }
     
+    // Store and parse file name
     size_t l;
     const char* file_name = mp_obj_str_get_data(args[0], &l);
     file->name = mp_obj_new_str(file_name, l);
     
+    // Parses file mode
     file->open_mode   = READ;
     file->edit_mode   = false;
     file->binary_mode = TEXT;
@@ -153,6 +165,92 @@ STATIC mp_obj_t file_make_new(const mp_obj_type_t *type, size_t n_args, size_t n
                     file->binary_mode = BINARY;
                     break;
             }
+        }
+    }
+    
+    // If "", throw file not found
+    if (l > 0) {
+        file->location = RAM;
+        // Check location (RAM/FLASH)
+        if (file_name[0] == '/') {
+            if (strncmp(file_name, "/ram/", 5) == 0) {
+                file->location = RAM;
+                file_name = file_name + 5;
+            // } else if (strncmp(file_name, "/flash/", 7)) {
+            //     file->location = FLASH;
+            //     file_name = file_name + 7;
+            } else {
+                mp_raise_OSError(2);
+            }
+        }
+    } else {
+        mp_raise_OSError(2);
+    }
+    
+    if (!Ion::Storage::FullNameCompliant(file_name)) {
+        mp_raise_OSError(22);
+    }
+    
+    if(file->location == RAM) {
+        Ion::Storage::Record::ErrorStatus status;
+    
+        switch(file->open_mode) {
+            case READ:
+                file->record = Ion::Storage::sharedStorage()->recordNamed(file_name);
+                file->position = 0;
+                if (file->record == Ion::Storage::Record()) {
+                    mp_raise_OSError(2);
+                }
+                break;
+            case CREATE:
+                file->position = 0;
+                status = Ion::Storage::sharedStorage()->createRecordWithFullName(file_name, "", 0);
+                switch (status) {
+                    case Ion::Storage::Record::ErrorStatus::NameTaken:
+                        mp_raise_OSError(17);
+                        break;
+                    case Ion::Storage::Record::ErrorStatus::NotEnoughSpaceAvailable:
+                        mp_raise_OSError(28);
+                        break;
+                    default:
+                        break;
+                }
+                file->record = Ion::Storage::sharedStorage()->recordNamed(file_name);
+                break;
+            case WRITE:
+                file->position = 0;
+                status = Ion::Storage::sharedStorage()->createRecordWithFullName(file_name, "", 0);
+                switch (status) {
+                    case Ion::Storage::Record::ErrorStatus::NameTaken:
+                        // setValue messes with empty buffer, so we delete record and re-create it.
+                        file->record = Ion::Storage::sharedStorage()->recordNamed(file_name);
+                        file->record.destroy();
+                        
+                        status = Ion::Storage::sharedStorage()->createRecordWithFullName(file_name, "", 0);
+                        
+                        if (status == Ion::Storage::Record::ErrorStatus::NotEnoughSpaceAvailable) {
+                            mp_raise_OSError(28);
+                        }
+                        break;
+                    case Ion::Storage::Record::ErrorStatus::NotEnoughSpaceAvailable:
+                        mp_raise_OSError(28);
+                        break;
+                    default:
+                        break;
+                }
+                file->record = Ion::Storage::sharedStorage()->recordNamed(file_name);
+                break;
+            case APPEND:
+                file->record = Ion::Storage::sharedStorage()->recordNamed(file_name);
+                file->position = 0;
+                if (file->record == Ion::Storage::Record()) {
+                    status = Ion::Storage::sharedStorage()->createRecordWithFullName(file_name, "", 0);
+                    if (status == Ion::Storage::Record::ErrorStatus::NotEnoughSpaceAvailable) {
+                        mp_raise_OSError(28);
+                    }
+                }
+                file->position = file->record.value().size;
+                break;
         }
     }
     
