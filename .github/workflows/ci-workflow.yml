@@ -100,3 +100,15 @@ jobs:
           name: epsilon-linux.bin
           path: output/release/simulator/linux/epsilon.bin
       - run: make -j2 PLATFORM=simulator test.headless.bin
+  doc:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sudo apt-get install build-essential doxygen
+      - uses: actions/checkout@v1
+        with:
+          submodules: true
+      - run: make doc
+      - uses: actions/upload-artifact@master
+        with:
+          name: html-doc
+          path: output/doc/html/
