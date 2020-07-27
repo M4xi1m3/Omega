@@ -8,9 +8,16 @@
 /* Let's instruct the linker about our memory layout.
  * This will let us use shortcuts such as ">FLASH" to ask for a given section to
  * be stored in Flash. */
+ 
 MEMORY {
   FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 1024K
   SRAM (rw) : ORIGIN = 0x20000000, LENGTH = 256K
+
+
+
+
+
+
 }
 
 STACK_SIZE = 32K;
