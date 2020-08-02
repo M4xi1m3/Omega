@@ -2,6 +2,7 @@
 #define ION_DEVICE_N0100_CONFIG_EXTERNAL_FLASH_H
 
 #include <regs/regs.h>
+#include <drivers/config/clocks.h>
 
 /*  Pin | Role                 | Mode                  | Function
  * -----+----------------------+-----------------------+-----------------
@@ -19,14 +20,13 @@ namespace ExternalFlash {
 namespace Config {
 
 using namespace Regs;
-
+#if EXTERNAL_FLASH_8M
 constexpr static uint32_t StartAddress = 0x90000000;
 constexpr static uint32_t EndAddress = 0x90800000;
 
 constexpr static int NumberOf4KSectors = 8;
 constexpr static int NumberOf32KSectors = 1;
 constexpr static int NumberOf64KSectors = 128 - 1;
-constexpr static int NumberOfSectors = NumberOf4KSectors + NumberOf32KSectors + NumberOf64KSectors;
 
 constexpr static AFGPIOPin Pins[] = {
   AFGPIOPin(GPIOB, 2,  GPIO::AFR::AlternateFunction::AF9,  GPIO::PUPDR::Pull::None, GPIO::OSPEEDR::OutputSpeed::High),
@@ -36,6 +36,18 @@ constexpr static AFGPIOPin Pins[] = {
   AFGPIOPin(GPIOD, 12, GPIO::AFR::AlternateFunction::AF9,  GPIO::PUPDR::Pull::None, GPIO::OSPEEDR::OutputSpeed::High),
   AFGPIOPin(GPIOD, 13, GPIO::AFR::AlternateFunction::AF9,  GPIO::PUPDR::Pull::None, GPIO::OSPEEDR::OutputSpeed::High),
 };
+#else
+constexpr static uint32_t StartAddress = 0xFFFFFFFF;
+constexpr static uint32_t EndAddress = 0xFFFFFFFF;
+
+constexpr static int NumberOf4KSectors = 0;
+constexpr static int NumberOf32KSectors = 0;
+constexpr static int NumberOf64KSectors = 0;
+constexpr static AFGPIOPin Pins[] = {};
+#endif
+
+constexpr static int NumberOfSectors = NumberOf4KSectors + NumberOf32KSectors + NumberOf64KSectors;
+constexpr static int ClockFrequencyDivisor = Clocks::Config::AHBFrequency / 96;
 
 }
 }
