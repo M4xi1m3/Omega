@@ -10,8 +10,7 @@ void coreWhilePlugged() {
    * might be plugged in. Doing a full core reset would result in the device
    * entering the ST DFU bootloader. By performing a jump-reset, we mimic the
    * core reset without entering ST bootloader.*/
-  // jump(InternalFlash::Config::StartAddress);
-  core();
+  jump(InternalFlash::Config::StartAddress);
 }
 
 }
